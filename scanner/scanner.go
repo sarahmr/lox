@@ -1,5 +1,6 @@
 package scanner
 
+// declares a new type
 type TokenType string
 
 const (
