@@ -43,7 +43,7 @@ func (l *Lox) runFile(path string) {
 }
 
 func (l *Lox) run(source string) {
-	loxscanner := scanner.NewScanner(source)
+	loxscanner := scanner.NewScanner(source, l.error)
 
 	tokens := loxscanner.ScanTokens()
 
@@ -68,6 +68,6 @@ func (l *Lox) error(lineNumber int, message string) {
 }
 
 func (l *Lox) report(lineNumber int, location string, message string) {
-	fmt.Printf("[line %d ] Error %s: %s", lineNumber, location, message)
+	fmt.Printf("[line %d ] Error %s: %s \n", lineNumber, location, message)
 	l.hadError = true
 }

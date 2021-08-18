@@ -1,5 +1,9 @@
 package scanner
 
+import (
+	"fmt"
+)
+
 // declares a new type
 type TokenType string
 
@@ -16,6 +20,39 @@ const (
 	SemiColon  TokenType = "SemiColon"
 	Slash      TokenType = "Slash"
 	Star       TokenType = "Star"
+
+	// one or two character tokens
+	Bang         TokenType = "Bang"
+	BangEqual    TokenType = "BangEqual"
+	Equal        TokenType = "Equal"
+	EqualEqual   TokenType = "EqualEqual"
+	Greater      TokenType = "Greater"
+	GreaterEqual TokenType = "GreaterEqual"
+	Less         TokenType = "Less"
+	LessEqual    TokenType = "LessEqual"
+
+	// Literals
+	Identifier TokenType = "Identifier"
+	String     TokenType = "String"
+	Number     TokenType = "Number"
+
+	// Keywords
+	And    TokenType = "And"
+	Class  TokenType = "Class"
+	Else   TokenType = "Else"
+	False  TokenType = "False"
+	Fun    TokenType = "Fun"
+	For    TokenType = "For"
+	If     TokenType = "If"
+	Nil    TokenType = "Nil"
+	Or     TokenType = "Or"
+	Print  TokenType = "Print"
+	Return TokenType = "Return"
+	Super  TokenType = "Super"
+	This   TokenType = "This"
+	True   TokenType = "True"
+	Var    TokenType = "Var"
+	While  TokenType = "While"
 
 	EOF TokenType = "EOF"
 )
@@ -42,12 +79,14 @@ type Scanner struct {
 	start   int
 	current int
 	line    int
+	onError func(lineNumber int, message string)
 }
 
-func NewScanner(source string) Scanner {
+func NewScanner(source string, onError func(lineNumber int, message string)) Scanner {
 	return Scanner{
-		Source: source,
-		line:   1,
+		Source:  source,
+		line:    1,
+		onError: onError,
 	}
 }
 
@@ -93,20 +132,64 @@ func (s *Scanner) scanToken() {
 		s.addToken(SemiColon)
 	case "*":
 		s.addToken(Star)
+	case "!":
+		t := Bang
+		if s.match('=') {
+			t = BangEqual
+		}
+		s.addToken(t)
+	case "=":
+		t := Equal
+		if s.match('=') {
+			t = EqualEqual
+		}
+		s.addToken(t)
+	case "<":
+		t := Less
+		if s.match('=') {
+			t = LessEqual
+		}
+		s.addToken(t)
+	case ">":
+		t := Greater
+		if s.match('=') {
+			t = GreaterEqual
+		}
+		s.addToken(t)
+	default:
+		s.onError(s.line, fmt.Sprintf("Unexpected character: %s.", c))
 	}
 }
 
-func (s *Scanner) advance() string {
+func (s *Scanner) match(expected rune) bool {
+	if s.isAtEnd() {
+		return false
+	}
+	if s.Source[s.current] != byte(expected) {
+		return false
+	}
+
 	s.current++
-	return string(s.Source[s.current-1])
+	return true
 }
 
-func (s *Scanner) addToken(t TokenType) {
+func (s *Scanner) advance() string {
+	curr := string(s.Source[s.current])
+	s.current++
+	return curr
+}
+
+func (s *Scanner) addTokenWithLiteral(t TokenType, literal Literal) {
 	text := s.Source[s.start:s.current]
 
 	s.Tokens = append(s.Tokens, Token{
-		Type:   t,
-		Lexeme: text,
-		Line:   s.line,
+		Type:    t,
+		Lexeme:  text,
+		Literal: literal,
+		Line:    s.line,
 	})
+}
+
+func (s *Scanner) addToken(t TokenType) {
+	s.addTokenWithLiteral(t, nil)
 }
