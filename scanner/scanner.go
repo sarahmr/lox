@@ -2,6 +2,7 @@ package scanner
 
 import (
 	"fmt"
+	"strconv"
 )
 
 // declares a new type
@@ -32,6 +33,7 @@ const (
 	LessEqual    TokenType = "LessEqual"
 
 	// Literals
+	// any variable, function name, etc., defined by user
 	Identifier TokenType = "Identifier"
 	String     TokenType = "String"
 	Number     TokenType = "Number"
@@ -60,6 +62,20 @@ const (
 type Literal interface {
 	IsLiteral()
 	ToString() string
+}
+
+type StringLiteral string
+
+func (StringLiteral) IsLiteral() {}
+func (s StringLiteral) ToString() string {
+	return string(s)
+}
+
+type FloatLiteral float64
+
+func (FloatLiteral) IsLiteral() {}
+func (f FloatLiteral) ToString() string {
+	return strconv.FormatFloat(float64(f), 'E', -1, 64)
 }
 
 type Token struct {
@@ -156,8 +172,27 @@ func (s *Scanner) scanToken() {
 			t = GreaterEqual
 		}
 		s.addToken(t)
+	case "/":
+		if s.match('/') {
+			for s.peek() != "\n" && !s.isAtEnd() {
+				s.advance()
+			}
+		} else {
+			s.addToken(Slash)
+		}
+	case " ", "\r", "\t":
+	case "\n":
+		s.line++
+	case "\"":
+		s.string()
 	default:
-		s.onError(s.line, fmt.Sprintf("Unexpected character: %s.", c))
+		if isDigit(c) {
+			s.number()
+		} else if isAlpha(c) {
+			s.identifier()
+		} else {
+			s.onError(s.line, fmt.Sprintf("Unexpected character: %s.", c))
+		}
 	}
 }
 
@@ -192,4 +227,108 @@ func (s *Scanner) addTokenWithLiteral(t TokenType, literal Literal) {
 
 func (s *Scanner) addToken(t TokenType) {
 	s.addTokenWithLiteral(t, nil)
+}
+
+func (s *Scanner) peek() string {
+	if s.isAtEnd() {
+		return ""
+	}
+	return string(s.Source[s.current])
+}
+
+func (s *Scanner) string() {
+	for s.peek() != "\"" && !s.isAtEnd() {
+		if s.peek() == "\n" {
+			s.line++
+		}
+		s.advance()
+	}
+
+	if s.isAtEnd() {
+		s.onError(s.line, "Unterminated string.")
+		return
+	}
+
+	s.advance()
+
+	var value = s.Source[s.start+1 : s.current-1]
+	s.addTokenWithLiteral(String, StringLiteral(value))
+}
+
+func isDigit(c string) bool {
+	return c >= "0" && c <= "9"
+}
+
+func (s *Scanner) number() {
+	for isDigit(s.peek()) {
+		s.advance()
+	}
+
+	if s.peek() == "." && isDigit(s.peekNext()) {
+		s.advance()
+
+		for isDigit(s.peek()) {
+			s.advance()
+		}
+	}
+
+	value, err := strconv.ParseFloat(s.Source[s.start:s.current], 64)
+
+	if err != nil {
+		s.onError(s.line, "Errorp parsing float.")
+	}
+
+	s.addTokenWithLiteral(Number, FloatLiteral(value))
+}
+
+func (s *Scanner) peekNext() string {
+	if s.current+1 >= len(s.Source) {
+		return ""
+	}
+
+	return string(s.Source[s.current+1])
+}
+
+func (s *Scanner) identifier() {
+	for isAlphaNumeric(s.peek()) {
+		s.advance()
+	}
+
+	var text = s.Source[s.start:s.current]
+
+	if typeOfText, found := keywords[text]; found {
+		s.addToken(typeOfText)
+		return
+	}
+
+	s.addToken(Identifier)
+}
+
+func isAlpha(c string) bool {
+	return (c >= "a" && c <= "z") ||
+		(c >= "A" && c <= "Z") ||
+		c == "_"
+}
+
+func isAlphaNumeric(c string) bool {
+	return isAlpha(c) || isDigit(c)
+}
+
+var keywords = map[string]TokenType{
+	"and":    And,
+	"class":  Class,
+	"else":   Else,
+	"false":  False,
+	"for":    For,
+	"fun":    Fun,
+	"if":     If,
+	"nil":    Nil,
+	"or":     Or,
+	"print":  Print,
+	"return": Return,
+	"super":  Super,
+	"this":   This,
+	"true":   True,
+	"var":    Var,
+	"while":  While,
 }
