@@ -12,6 +12,8 @@ import (
 
 // don't call main function with arguments since the program is calling it
 func main() {
+	testPrinter()
+
 	args := os.Args[1:]
 	loxInterpreter := Lox{}
 
@@ -70,4 +72,34 @@ func (l *Lox) error(lineNumber int, message string) {
 func (l *Lox) report(lineNumber int, location string, message string) {
 	fmt.Printf("[line %d ] Error %s: %s \n", lineNumber, location, message)
 	l.hadError = true
+}
+
+func testPrinter() {
+	expr := BinaryExpr{
+		Operator: scanner.Token{
+			Type:    scanner.Star,
+			Lexeme:  "*",
+			Literal: nil,
+			Line:    1,
+		},
+		Left: UnaryExpr{
+			Operator: scanner.Token{
+				Type:    scanner.Minus,
+				Lexeme:  "-",
+				Literal: nil,
+				Line:    1,
+			},
+			Right: LiteralExpr{
+				Value: scanner.FloatLiteral(123),
+			},
+		},
+		Right: GroupingExpr{
+			Expression: LiteralExpr{
+				Value: scanner.FloatLiteral(45.67),
+			},
+		},
+	}
+
+	astPrinter := AstPrinter{}
+	fmt.Println(astPrinter.Print(expr))
 }
